@@ -47,7 +47,7 @@ export const buy = async (coin, price, usd, leverage) => {
   await binance.futuresLeverage(coin, leverage);
   const txn = await binance.futuresMarketBuy(coin, quantity);
   console.log(coin , txn)
-  return quantity
+  return parseFloat(await txn.origQty)
 };
 
 export const closeBuy = async (coin , quantity) => {
@@ -69,7 +69,7 @@ export const sell = async (coin, price, usd, leverage) => {
   await binance.futuresLeverage(coin, leverage);
   const txn = await binance.futuresMarketSell(coin, quantity);
   console.log(coin , txn)
-  return quantity
+  return parseFloat(await txn.origQty)
 };
 
 
