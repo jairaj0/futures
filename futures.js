@@ -1,7 +1,9 @@
 import Binance from "node-binance-api";
+import 'dotenv/config';
+
 const binance = new Binance().options({
-  APIKEY: "exxOOqK4qQ6Tsf2ZRyZeWdIyZ2d3Rs7RkwSskyRroZYYAgSuSJ39nBmuSO70XkRv",
-  APISECRET: "T2Dl7rKeRbAEO2dBDLgvSTss9VOCzgqNXuol9wGiMo0fYDkh77ARuTfZIz96Eid4",
+  APIKEY: process.env.API_KEY,
+  APISECRET: process.env.API_SECRET,
 });
 
 export const getBalance = async (currency) => {
@@ -16,6 +18,17 @@ export const getBalance = async (currency) => {
 
   return bal;
 };
+
+const PNL = async(coin) => {
+  let income = await binance.futuresIncome();
+  let letestPnl ;
+  Object.keys(income).map(value => {
+    if(income[value].symbol === coin && income[value].incomeType === "REALIZED_PNL"){
+      letestPnl= income[value]
+    }
+  })
+  return letestPnl
+}
 
 const exchange = async (coin) => {
   let min;
@@ -38,39 +51,52 @@ const decimalCount = (number) => {
   return 0;
 };
 
-export const buy = async (coin, price, usd, leverage) => {
-  const min = await exchange(coin);
-  const dec = await decimalCount(min);
-  let quantity = parseFloat(((1 / price) * usd * leverage).toFixed(dec));
+export const buy = async (coin, price, usd, leverage , tradelen) => {
+  let balance = await getBalance("USDT");
 
-  await binance.futuresMarginType(coin, "ISOLATED");
-  await binance.futuresLeverage(coin, leverage);
-  const txn = await binance.futuresMarketBuy(coin, quantity);
-  console.log(coin , txn)
-  return parseFloat(await txn.origQty)
+  if ((balance - (usd * tradelen)) > usd) {
+    // console.log((balance - (usd * tradelen)) , usd , tradelen)
+    const min = await exchange(coin);
+    const dec = await decimalCount(min);
+    let quantity = parseFloat(((1 / price) * usd * leverage).toFixed(dec));
+
+    await binance.futuresMarginType(coin, "ISOLATED");
+    await binance.futuresLeverage(coin, leverage);
+    const txn = await binance.futuresMarketBuy(coin, quantity);
+    console.log(coin, txn);
+    return parseFloat(await txn.origQty);
+  }
 };
 
-export const closeBuy = async (coin , quantity) => {
-  const txn = await binance.futuresMarketSell(coin, quantity);
-  console.log("closeBuy" , coin , txn)
-}
+export const sell = async (coin, price, usd, leverage , tradelen) => {
+  let balance = await getBalance("USDT");
 
-export const closeSell = async (coin , quantity) => {
-  const txn = await binance.futuresMarketBuy(coin, quantity);
-  console.log("closeSell" , coin ,txn)
-}
+  if ((balance - (usd * tradelen)) > usd) {
+    // console.log((balance - (usd * tradelen)) , usd , tradelen)
+    const min = await exchange(coin);
+    const dec = await decimalCount(min);
+    let quantity = parseFloat(((1 / price) * usd * leverage).toFixed(dec));
 
-export const sell = async (coin, price, usd, leverage) => {
-  const min = await exchange(coin);
-  const dec = await decimalCount(min);
-  let quantity = parseFloat(((1 / price) * usd * leverage).toFixed(dec));
-
-  await binance.futuresMarginType(coin, "ISOLATED");
-  await binance.futuresLeverage(coin, leverage);
-  const txn = await binance.futuresMarketSell(coin, quantity);
-  console.log(coin , txn)
-  return parseFloat(await txn.origQty)
+    await binance.futuresMarginType(coin, "ISOLATED");
+    await binance.futuresLeverage(coin, leverage);
+    const txn = await binance.futuresMarketSell(coin, quantity);
+    console.log(coin, txn);
+    return parseFloat(await txn.origQty);
+  }
 };
+
+export const closeBuy = async (coin, quantity) => {
+  await binance.futuresMarketSell(coin, quantity);
+let _pnl = await PNL(coin);
+  console.log("closeBuy", coin, _pnl);
+};
+
+export const closeSell = async (coin, quantity) => {
+  await binance.futuresMarketBuy(coin, quantity);
+  let _pnl = await PNL(coin);
+  console.log("closeSell", coin, _pnl);
+};
+
 
 
 
